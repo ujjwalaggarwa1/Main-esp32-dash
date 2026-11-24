@@ -15,6 +15,6 @@ idf_component_register(
         mbedtls
         esp_partition
         esp_system
-        cjson
+        json
         esp_timer
 )
