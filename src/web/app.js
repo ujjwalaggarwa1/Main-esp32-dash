@@ -1,5 +1,6 @@
 let lastManifest = null;
 let pollTimer = null;
+let testBuildsList = [];
 
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -124,6 +125,21 @@ async function checkOtaUpdate() {
       alertEl.className = 'alert alert-info';
       alertEl.textContent = data.message || 'Firmware is already up to date.';
     }
+
+    // Handle available test builds
+    const testSection = document.getElementById('test-builds-section');
+    const testSelect = document.getElementById('select-test-build');
+    testBuildsList = data.test_builds || [];
+
+    if (testBuildsList.length > 0) {
+      testSection.classList.remove('hidden');
+      testSelect.innerHTML = testBuildsList.map((tb, idx) => 
+        `<option value="${idx}">${tb.name || tb.version} (v${tb.version})</option>`
+      ).join('');
+      onTestBuildSelected();
+    } else {
+      testSection.classList.add('hidden');
+    }
   } catch (e) {
     btn.disabled = false;
     btn.innerHTML = '&#128269; Check for Updates';
@@ -165,6 +181,68 @@ async function startOtaUpdate() {
     alert('Error triggering OTA: ' + e);
     runBtn.disabled = false;
     checkBtn.disabled = false;
+  }
+}
+
+function onTestBuildSelected() {
+  const sel = document.getElementById('select-test-build');
+  const infoEl = document.getElementById('test-build-info');
+  const idx = parseInt(sel.value, 10);
+  if (isNaN(idx) || !testBuildsList[idx]) {
+    infoEl.textContent = 'No test build selected';
+    return;
+  }
+  const tb = testBuildsList[idx];
+  infoEl.innerHTML = `<strong>Version:</strong> v${tb.version} | <strong>Hash:</strong> <span class="code-inline">${tb.hash}</span><br><strong>URL:</strong> <span class="code-inline">${tb.bin_url}</span><br><strong>Notes:</strong> ${tb.notes || 'None'}`;
+}
+
+async function startTestBuildUpdate() {
+  const sel = document.getElementById('select-test-build');
+  const idx = parseInt(sel.value, 10);
+  if (isNaN(idx) || !testBuildsList[idx]) {
+    alert('Please select a valid test build first.');
+    return;
+  }
+  const tb = testBuildsList[idx];
+
+  if (!confirm(`Flash test build "${tb.name || tb.version}" (v${tb.version}) to the ESP32? The device will reboot after completion.`)) {
+    return;
+  }
+
+  const runBtn = document.getElementById('btn-run-ota');
+  const checkBtn = document.getElementById('btn-check-ota');
+  const flashTestBtn = document.getElementById('btn-flash-test');
+  runBtn.disabled = true;
+  checkBtn.disabled = true;
+  flashTestBtn.disabled = true;
+
+  const progressArea = document.getElementById('ota-progress-area');
+  progressArea.classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/ota/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bin_url: tb.bin_url,
+        new_version: tb.version,
+        new_hash: tb.hash
+      })
+    });
+
+    if (res.ok) {
+      pollOtaProgress();
+    } else {
+      alert('Failed to trigger test update on device.');
+      runBtn.disabled = false;
+      checkBtn.disabled = false;
+      flashTestBtn.disabled = false;
+    }
+  } catch (e) {
+    alert('Error triggering test OTA: ' + e);
+    runBtn.disabled = false;
+    checkBtn.disabled = false;
+    flashTestBtn.disabled = false;
   }
 }
 

@@ -181,7 +181,7 @@ label {
   margin-bottom: 0.4rem;
 }
 
-input[type="text"], input[type="password"] {
+input[type="text"], input[type="password"], select.select-build {
   width: 100%;
   padding: 0.75rem 1rem;
   background: var(--bg);
@@ -192,7 +192,7 @@ input[type="text"], input[type="password"] {
   transition: border-color 0.2s;
 }
 
-input[type="text"]:focus, input[type="password"]:focus {
+input[type="text"]:focus, input[type="password"]:focus, select.select-build:focus {
   outline: none;
   border-color: var(--primary);
 }

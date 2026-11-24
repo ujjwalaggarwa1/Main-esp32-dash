@@ -135,7 +135,24 @@
           &#128269; Check for Updates
         </button>
         <button id="btn-run-ota" class="btn btn-success" onclick="startOtaUpdate()" disabled>
-          &#11015; Install Update Now
+          &#11015; Install Default Update (main.bin)
+        </button>
+      </div>
+
+      <!-- Test / Alternate Builds Section -->
+      <div id="test-builds-section" class="card hidden" style="background: rgba(15, 23, 42, 0.5); border-style: dashed; margin-top: 1rem;">
+        <div class="card-title">&#129514; Available Test &amp; Alternate Builds</div>
+        <p class="section-desc">Select an experimental build or test binary from the repository to flash onto this device:</p>
+        <div class="form-group">
+          <label for="select-test-build">Select Binary from compiled/:</label>
+          <select id="select-test-build" class="select-build" onchange="onTestBuildSelected()"></select>
+        </div>
+        <div id="test-build-details" class="stat-box mb-15">
+          <div class="stat-label">Selected Build Info</div>
+          <div id="test-build-info" style="font-size:0.85rem; color:var(--text-dim); line-height: 1.5;">...</div>
+        </div>
+        <button id="btn-flash-test" class="btn btn-primary" onclick="startTestBuildUpdate()">
+          &#9889; Flash Selected Test Build
         </button>
       </div>
 

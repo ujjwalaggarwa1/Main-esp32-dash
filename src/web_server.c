@@ -170,6 +170,18 @@ static esp_err_t api_ota_check_handler(httpd_req_t *req) {
     cJSON_AddBoolToObject(root, "update_available", info.update_available);
     cJSON_AddStringToObject(root, "message", info.message);
 
+    cJSON *tests_arr = cJSON_CreateArray();
+    for (int i = 0; i < info.test_builds_count; i++) {
+        cJSON *b = cJSON_CreateObject();
+        cJSON_AddStringToObject(b, "name", info.test_builds[i].name);
+        cJSON_AddStringToObject(b, "version", info.test_builds[i].version);
+        cJSON_AddStringToObject(b, "hash", info.test_builds[i].hash);
+        cJSON_AddStringToObject(b, "bin_url", info.test_builds[i].bin_url);
+        cJSON_AddStringToObject(b, "notes", info.test_builds[i].notes);
+        cJSON_AddItemToArray(tests_arr, b);
+    }
+    cJSON_AddItemToObject(root, "test_builds", tests_arr);
+
     return send_json_response(req, root);
 }
 

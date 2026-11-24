@@ -17,6 +17,16 @@ typedef enum {
     OTA_STATE_FAILED
 } ota_state_t;
 
+#define MAX_TEST_BUILDS 8
+
+typedef struct {
+    char name[48];
+    char version[32];
+    char hash[65];
+    char bin_url[256];
+    char notes[128];
+} ota_test_build_t;
+
 typedef struct {
     char remote_version[32];
     char remote_hash[65];
@@ -24,6 +34,8 @@ typedef struct {
     char notes[256];
     bool update_available;
     char message[128];
+    int test_builds_count;
+    ota_test_build_t test_builds[MAX_TEST_BUILDS];
 } ota_manifest_info_t;
 
 typedef struct {

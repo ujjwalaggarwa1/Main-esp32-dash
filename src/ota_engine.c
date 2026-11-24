@@ -136,6 +136,38 @@ esp_err_t ota_engine_check(const char *manifest_url, ota_manifest_info_t *out_in
         strncpy(info.notes, j_notes->valuestring, sizeof(info.notes) - 1);
     }
 
+    cJSON *j_tests = cJSON_GetObjectItem(root, "test_builds");
+    if (j_tests && cJSON_IsArray(j_tests)) {
+        int count = cJSON_GetArraySize(j_tests);
+        if (count > MAX_TEST_BUILDS) count = MAX_TEST_BUILDS;
+        info.test_builds_count = count;
+        for (int i = 0; i < count; i++) {
+            cJSON *item = cJSON_GetArrayItem(j_tests, i);
+            if (!item) continue;
+            cJSON *t_name = cJSON_GetObjectItem(item, "name");
+            if (t_name && cJSON_IsString(t_name)) {
+                strncpy(info.test_builds[i].name, t_name->valuestring, sizeof(info.test_builds[i].name) - 1);
+            }
+            cJSON *t_ver = cJSON_GetObjectItem(item, "version");
+            if (t_ver && cJSON_IsString(t_ver)) {
+                strncpy(info.test_builds[i].version, t_ver->valuestring, sizeof(info.test_builds[i].version) - 1);
+            }
+            cJSON *t_hash = cJSON_GetObjectItem(item, "hash");
+            if (t_hash && cJSON_IsString(t_hash)) {
+                strncpy(info.test_builds[i].hash, t_hash->valuestring, sizeof(info.test_builds[i].hash) - 1);
+            }
+            cJSON *t_url = cJSON_GetObjectItem(item, "bin_url");
+            if (!t_url) t_url = cJSON_GetObjectItem(item, "url");
+            if (t_url && cJSON_IsString(t_url)) {
+                strncpy(info.test_builds[i].bin_url, t_url->valuestring, sizeof(info.test_builds[i].bin_url) - 1);
+            }
+            cJSON *t_notes = cJSON_GetObjectItem(item, "notes");
+            if (t_notes && cJSON_IsString(t_notes)) {
+                strncpy(info.test_builds[i].notes, t_notes->valuestring, sizeof(info.test_builds[i].notes) - 1);
+            }
+        }
+    }
+
     cJSON_Delete(root);
 
     // Get current device settings

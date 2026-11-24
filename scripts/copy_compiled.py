@@ -17,8 +17,12 @@ def post_build_action(source, target, env):
     compiled_dir = os.path.join(project_dir, "compiled")
     os.makedirs(compiled_dir, exist_ok=True)
     
-    dest_bin = os.path.join(compiled_dir, "firmware.bin")
+    # Save as main.bin (default production binary)
+    dest_bin = os.path.join(compiled_dir, "main.bin")
     shutil.copyfile(firmware_bin, dest_bin)
+    
+    # Also keep firmware.bin for backward compatibility
+    shutil.copyfile(firmware_bin, os.path.join(compiled_dir, "firmware.bin"))
     
     # Calculate SHA256 of the binary (first 16 hex chars)
     hasher = hashlib.sha256()
@@ -36,15 +40,22 @@ def post_build_action(source, target, env):
             if m:
                 version = m.group(1)
                 
-    # Read existing bin_url if already set
+    # Read existing version.json to preserve custom bin_url, notes, and test_builds
     version_json_path = os.path.join(compiled_dir, "version.json")
-    bin_url = "https://raw.githubusercontent.com/<username>/<repo>/main/compiled/firmware.bin"
+    bin_url = "https://raw.githubusercontent.com/<username>/<repo>/main/compiled/main.bin"
+    notes = f"Production release: firmware v{version} (hash: {bin_hash})"
+    test_builds = []
+    
     if os.path.exists(version_json_path):
         try:
             with open(version_json_path, "r", encoding="utf-8") as f:
                 old_data = json.load(f)
                 if "bin_url" in old_data and "<username>" not in old_data["bin_url"]:
                     bin_url = old_data["bin_url"]
+                if "test_builds" in old_data and isinstance(old_data["test_builds"], list):
+                    test_builds = old_data["test_builds"]
+                if "notes" in old_data:
+                    notes = old_data["notes"]
         except Exception:
             pass
 
@@ -52,12 +63,13 @@ def post_build_action(source, target, env):
         "version": version,
         "hash": bin_hash,
         "bin_url": bin_url,
-        "notes": f"Automated build: firmware v{version} (hash: {bin_hash})"
+        "notes": notes,
+        "test_builds": test_builds
     }
     
     with open(version_json_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
         
-    print(f"\n[PostBuild] Synced to compiled/: firmware.bin & version.json (v{version}, hash: {bin_hash})\n")
+    print(f"\n[PostBuild] Synced to compiled/: main.bin & version.json (v{version}, hash: {bin_hash})\n")
 
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", post_build_action)

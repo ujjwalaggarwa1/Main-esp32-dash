@@ -1,6 +1,15 @@
 {
   "version": "1.0.0",
-  "hash": "6ea219654f2f63fa",
-  "bin_url": "https://raw.githubusercontent.com/<username>/<repo>/main/compiled/firmware.bin",
-  "notes": "Modular Web UI version with separate HTML, CSS, JS and GitHub OTA engine"
+  "hash": "aae69e80476d2db1",
+  "bin_url": "https://raw.githubusercontent.com/<username>/<repo>/main/compiled/main.bin",
+  "notes": "Production release: Master Helper core with Web UI and GitHub OTA engine",
+  "test_builds": [
+    {
+      "name": "Beta / Experimental Build",
+      "version": "1.0.1-beta",
+      "hash": "b2c3d4e5f6a1b2c3",
+      "bin_url": "https://raw.githubusercontent.com/<username>/<repo>/main/compiled/test-build.bin",
+      "notes": "Experimental features and life endpoint test build"
+    }
+  ]
 }
