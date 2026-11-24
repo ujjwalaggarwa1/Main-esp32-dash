@@ -1,0 +1,10 @@
+.pio/
+.vscode/
+.idea/
+*.pyc
+*.bin
+*.elf
+*.map
+sdkconfig.old
+sdkconfig.ci
+build/
