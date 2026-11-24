@@ -1,8 +1,12 @@
-FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
+FILE(GLOB app_sources ${CMAKE_CURRENT_LIST_DIR}/*.c ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 
 idf_component_register(
     SRCS ${app_sources}
     INCLUDE_DIRS "."
+    EMBED_TXTFILES
+        "web/index.html"
+        "web/style.css"
+        "web/app.js"
     REQUIRES
         nvs_flash
         esp_wifi

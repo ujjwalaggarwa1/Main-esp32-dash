@@ -13,7 +13,7 @@ extern "C" {
 #define DEFAULT_DEVICE_NAME         "MasterHelper"
 #define DEFAULT_AP_SSID             "MasterHelper-AP"
 #define DEFAULT_AP_PASS             "12345678"
-#define DEFAULT_GITHUB_UPDATE_URL   "https://raw.githubusercontent.com/user/repo/main/version.json"
+#define DEFAULT_GITHUB_UPDATE_URL   "https://raw.githubusercontent.com/user/repo/main/compiled/version.json"
 
 // Storage lengths
 #define MAX_SSID_LEN        32

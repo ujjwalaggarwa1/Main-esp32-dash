@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Master Helper - ESP32 Control Center</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="title-group">
+      <h1>&#9889; Master Helper</h1>
+      <p id="sub-title">ESP32-C3 Control Center &amp; OTA Gateway</p>
+    </div>
+    <div id="net-badge" class="badge badge-blue">&#8987; Connecting...</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-dash')">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('tab-wifi')">Wi-Fi &amp; Settings</button>
+    <button class="tab-btn" onclick="switchTab('tab-ota')">GitHub OTA Updater</button>
+    <button class="tab-btn" onclick="switchTab('tab-manual')">Manual Flash</button>
+  </div>
+
+  <!-- DASHBOARD TAB -->
+  <div id="tab-dash" class="tab-content">
+    <div class="card">
+      <div class="card-title">System Overview</div>
+      <div class="grid-2">
+        <div class="stat-box">
+          <div class="stat-label">Device Name</div>
+          <div class="stat-value" id="stat-name">MasterHelper</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Running Version</div>
+          <div class="stat-value" id="stat-ver">...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Current Hash</div>
+          <div class="stat-value code-inline" id="stat-hash">...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Active Boot Partition</div>
+          <div class="stat-value" id="stat-partition">...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">IP Address</div>
+          <div class="stat-value" id="stat-ip">...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Wi-Fi Mode &amp; RSSI</div>
+          <div class="stat-value" id="stat-rssi">...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Free Heap RAM</div>
+          <div class="stat-value" id="stat-heap">...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Device Uptime</div>
+          <div class="stat-value" id="stat-uptime">...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WI-FI & SETTINGS TAB -->
+  <div id="tab-wifi" class="tab-content hidden">
+    <div class="card">
+      <div class="card-title">Configuration File &amp; Settings</div>
+      <div id="cfg-alert" class="alert hidden"></div>
+
+      <div class="form-group">
+        <label for="cfg-device-name">Device Name</label>
+        <input type="text" id="cfg-device-name" placeholder="e.g. MasterHelper">
+      </div>
+
+      <div class="form-group">
+        <label for="cfg-ssid">Wi-Fi Network Name (SSID)</label>
+        <input type="text" id="cfg-ssid" placeholder="Enter Wi-Fi SSID">
+      </div>
+
+      <div class="form-group">
+        <label for="cfg-pass">Wi-Fi Password</label>
+        <input type="password" id="cfg-pass" placeholder="Enter Wi-Fi Password">
+      </div>
+
+      <div class="form-group">
+        <label for="cfg-github-url">GitHub Update Manifest URL (version.json)</label>
+        <input type="text" id="cfg-github-url" placeholder="https://raw.githubusercontent.com/user/repo/main/version.json">
+        <small class="helper-text">
+          Points to raw JSON manifest in your GitHub repository containing version, commit hash, and firmware download link.
+        </small>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveConfig(false)">Save Settings</button>
+        <button class="btn btn-success" onclick="saveConfig(true)">Save &amp; Reconnect</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">System Controls</div>
+      <button class="btn btn-danger" onclick="restartDevice()">Restart ESP32</button>
+    </div>
+  </div>
+
+  <!-- GITHUB OTA UPDATER TAB -->
+  <div id="tab-ota" class="tab-content hidden">
+    <div class="card">
+      <div class="card-title">GitHub Firmware Updater</div>
+      <p class="section-desc">
+        The device checks the remote <span class="code-inline">version.json</span> manifest file. 
+        Updates are triggered <strong>only when the version number changes</strong> and the remote commit hash does not match the currently running build.
+      </p>
+
+      <div class="grid-2 mb-15">
+        <div class="stat-box">
+          <div class="stat-label">Currently Running Build</div>
+          <div class="stat-value" id="ota-cur-ver">Version: ...</div>
+          <div class="sub-stat">Hash: <span class="code-inline" id="ota-cur-hash">...</span></div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-label">Remote GitHub Build</div>
+          <div class="stat-value" id="ota-rem-ver">Version: (Not checked)</div>
+          <div class="sub-stat">Hash: <span class="code-inline" id="ota-rem-hash">-</span></div>
+        </div>
+      </div>
+
+      <div id="ota-check-result" class="alert hidden"></div>
+
+      <div class="btn-group mb-15">
+        <button id="btn-check-ota" class="btn btn-primary" onclick="checkOtaUpdate()">
+          &#128269; Check for Updates
+        </button>
+        <button id="btn-run-ota" class="btn btn-success" onclick="startOtaUpdate()" disabled>
+          &#11015; Install Update Now
+        </button>
+      </div>
+
+      <!-- OTA Progress Area -->
+      <div id="ota-progress-area" class="hidden">
+        <div class="progress-info">
+          <span id="ota-status-text">Downloading update...</span>
+          <span id="ota-percent-text">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="ota-progress-bar" class="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <div class="manifest-doc">
+        <h4>Expected GitHub version.json Format:</h4>
+        <pre>{
+  "version": "1.0.1",
+  "hash": "8f3b92a",
+  "bin_url": "https://raw.githubusercontent.com/user/repo/main/build/firmware.bin",
+  "notes": "Added new helper endpoints and stability fixes"
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANUAL FLASH TAB -->
+  <div id="tab-manual" class="tab-content hidden">
+    <div class="card">
+      <div class="card-title">Manual Firmware Upload (.bin)</div>
+      <p class="section-desc">
+        If you want to flash a pre-compiled binary file without GitHub, you can upload it directly from your computer here.
+      </p>
+
+      <div class="form-group">
+        <input type="file" id="manual-file" accept=".bin">
+      </div>
+
+      <button id="btn-manual-upload" class="btn btn-primary" onclick="uploadManualBinary()">
+        Flash Selected Binary
+      </button>
+
+      <div id="manual-progress-area" class="hidden mt-15">
+        <div class="progress-info">
+          <span id="manual-status-text">Uploading...</span>
+          <span id="manual-percent-text">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="manual-progress-bar" class="progress-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
