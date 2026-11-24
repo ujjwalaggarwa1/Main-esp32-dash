@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "web_ui.h"
 #include "config_manager.h"
 #include "wifi_manager.h"
 #include "ota_engine.h"
@@ -14,14 +15,6 @@
 
 static const char *TAG = "WEB_SERVER";
 static httpd_handle_t s_server = NULL;
-
-// Embedded web files (from src/web/)
-extern const uint8_t index_html_start[] asm("_binary_index_html_start");
-extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
-extern const uint8_t style_css_start[]  asm("_binary_style_css_start");
-extern const uint8_t style_css_end[]    asm("_binary_style_css_end");
-extern const uint8_t app_js_start[]     asm("_binary_app_js_start");
-extern const uint8_t app_js_end[]       asm("_binary_app_js_end");
 
 // Helper: send JSON response
 static esp_err_t send_json_response(httpd_req_t *req, cJSON *root) {
@@ -44,28 +37,24 @@ static esp_err_t send_json_response(httpd_req_t *req, cJSON *root) {
     return res;
 }
 
-// GET / - Serves index.html
+// GET / - Serves unified index.html (with inline CSS and JS)
 static esp_err_t root_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
-    size_t len = index_html_end - index_html_start;
-    return httpd_resp_send(req, (const char *)index_html_start, len);
+    return httpd_resp_send(req, INDEX_HTML, strlen(INDEX_HTML));
 }
 
-// GET /style.css - Serves CSS
-static esp_err_t style_css_get_handler(httpd_req_t *req) {
-    httpd_resp_set_type(req, "text/css");
-    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
-    size_t len = style_css_end - style_css_start;
-    return httpd_resp_send(req, (const char *)style_css_start, len);
+// GET /favicon.ico - 204 No Content to avoid browser 404s
+static esp_err_t favicon_get_handler(httpd_req_t *req) {
+    httpd_resp_set_status(req, "204 No Content");
+    return httpd_resp_send(req, NULL, 0);
 }
 
-// GET /app.js - Serves JavaScript
-static esp_err_t app_js_get_handler(httpd_req_t *req) {
-    httpd_resp_set_type(req, "application/javascript");
+// Fallback GET for legacy requests
+static esp_err_t empty_get_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/plain");
     httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
-    size_t len = app_js_end - app_js_start;
-    return httpd_resp_send(req, (const char *)app_js_start, len);
+    return httpd_resp_send(req, "", 0);
 }
 
 // GET /api/status
@@ -349,10 +338,13 @@ esp_err_t web_server_start(void) {
     httpd_uri_t uri_root = { .uri = "/", .method = HTTP_GET, .handler = root_get_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_root);
 
-    httpd_uri_t uri_style = { .uri = "/style.css", .method = HTTP_GET, .handler = style_css_get_handler, .user_ctx = NULL };
+    httpd_uri_t uri_fav = { .uri = "/favicon.ico", .method = HTTP_GET, .handler = favicon_get_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &uri_fav);
+
+    httpd_uri_t uri_style = { .uri = "/style.css", .method = HTTP_GET, .handler = empty_get_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_style);
 
-    httpd_uri_t uri_app_js = { .uri = "/app.js", .method = HTTP_GET, .handler = app_js_get_handler, .user_ctx = NULL };
+    httpd_uri_t uri_app_js = { .uri = "/app.js", .method = HTTP_GET, .handler = empty_get_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_app_js);
 
     httpd_uri_t uri_status = { .uri = "/api/status", .method = HTTP_GET, .handler = api_status_handler, .user_ctx = NULL };
