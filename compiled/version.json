@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "hash": "aae69e80476d2db1",
+  "hash": "698f667027db6d9e",
   "bin_url": "https://raw.githubusercontent.com/<username>/<repo>/main/compiled/main.bin",
   "notes": "Production release: Master Helper core with Web UI and GitHub OTA engine",
   "test_builds": [

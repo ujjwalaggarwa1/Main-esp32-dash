@@ -65,9 +65,6 @@ static void start_softap(void) {
     if (s_ap_active) return;
 
     ESP_LOGI(TAG, "Activating SoftAP configuration mode...");
-    if (!s_ap_netif) {
-        s_ap_netif = esp_netif_create_default_wifi_ap();
-    }
 
     wifi_config_t ap_config = {
         .ap = {
@@ -100,6 +97,7 @@ esp_err_t wifi_manager_init(void) {
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     s_sta_netif = esp_netif_create_default_wifi_sta();
+    s_ap_netif = esp_netif_create_default_wifi_ap();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));

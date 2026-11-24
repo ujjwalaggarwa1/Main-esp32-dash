@@ -2,12 +2,16 @@ let lastManifest = null;
 let pollTimer = null;
 let testBuildsList = [];
 
-function switchTab(tabId) {
+function switchTab(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById(tabId).classList.remove('hidden');
-  if (event && event.target) {
-    event.target.classList.add('active');
+  const target = document.getElementById(tabId);
+  if (target) target.classList.remove('hidden');
+  if (btn) {
+    btn.classList.add('active');
+  } else {
+    const el = document.querySelector(`[onclick*="${tabId}"]`);
+    if (el) el.classList.add('active');
   }
 }
 

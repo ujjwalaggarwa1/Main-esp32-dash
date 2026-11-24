@@ -25,7 +25,16 @@ extern const uint8_t app_js_end[]       asm("_binary_app_js_end");
 
 // Helper: send JSON response
 static esp_err_t send_json_response(httpd_req_t *req, cJSON *root) {
+    if (!root) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
     char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        cJSON_Delete(root);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     esp_err_t res = httpd_resp_send(req, json_str, strlen(json_str));
