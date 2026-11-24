@@ -2,6 +2,7 @@
 #include "web_ui.h"
 #include "config_manager.h"
 #include "wifi_manager.h"
+#include "hardware_manager.h"
 #include "ota_engine.h"
 
 #include <string.h>
@@ -281,6 +282,52 @@ static esp_err_t api_restart_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// GET /api/gpio - Status of GPIOs & Onboard LED
+static esp_err_t api_gpio_get_handler(httpd_req_t *req) {
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "led_state", hardware_get_led());
+    cJSON_AddNumberToObject(root, "led_pin", ONBOARD_LED_GPIO);
+    return send_json_response(req, root);
+}
+
+// POST /api/gpio - Control GPIOs & Onboard LED
+static esp_err_t api_gpio_post_handler(httpd_req_t *req) {
+    char buf[128] = {0};
+    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (ret <= 0) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    buf[ret] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    cJSON *j_toggle = cJSON_GetObjectItem(root, "toggle");
+    cJSON *j_state = cJSON_GetObjectItem(root, "state");
+    cJSON *j_pin = cJSON_GetObjectItem(root, "pin");
+
+    if (j_toggle && cJSON_IsTrue(j_toggle)) {
+        hardware_toggle_led();
+    } else if (j_state && cJSON_IsBool(j_state)) {
+        int pin = (j_pin && cJSON_IsNumber(j_pin)) ? j_pin->valueint : ONBOARD_LED_GPIO;
+        if (pin == ONBOARD_LED_GPIO) {
+            hardware_set_led(cJSON_IsTrue(j_state));
+        } else {
+            hardware_set_gpio(pin, cJSON_IsTrue(j_state) ? 1 : 0);
+        }
+    }
+
+    cJSON_Delete(root);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject(resp, "success", true);
+    cJSON_AddBoolToObject(resp, "led_state", hardware_get_led());
+    return send_json_response(req, resp);
+}
+
 esp_err_t web_server_start(void) {
     if (s_server != NULL) {
         ESP_LOGW(TAG, "Server already running");
@@ -288,7 +335,7 @@ esp_err_t web_server_start(void) {
     }
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 12;
+    config.max_uri_handlers = 16;
     config.stack_size = 8192;
     config.lru_purge_enable = true;
 
@@ -304,6 +351,12 @@ esp_err_t web_server_start(void) {
 
     httpd_uri_t uri_status = { .uri = "/api/status", .method = HTTP_GET, .handler = api_status_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_status);
+
+    httpd_uri_t uri_gpio_get = { .uri = "/api/gpio", .method = HTTP_GET, .handler = api_gpio_get_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &uri_gpio_get);
+
+    httpd_uri_t uri_gpio_post = { .uri = "/api/gpio", .method = HTTP_POST, .handler = api_gpio_post_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &uri_gpio_post);
 
     httpd_uri_t uri_cfg_get = { .uri = "/api/config", .method = HTTP_GET, .handler = api_config_get_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_cfg_get);

@@ -121,6 +121,24 @@ input[type="text"]:focus, input[type="password"]:focus { outline: none; border-c
         </div>
       </div>
     </div>
+
+    <!-- HARDWARE CONTROLS CARD -->
+    <div class="card">
+      <div class="card-title">
+        <span>Hardware Peripherals</span>
+        <span class="badge badge-blue">ESP32-C3 SuperMini</span>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:0.5rem 0;">
+        <div>
+          <strong style="font-size:1.05rem;">Onboard Blue LED (GPIO 8)</strong>
+          <p style="font-size:0.85rem; color:var(--text-dim); margin-top:0.2rem;">Live toggle control for the onboard hardware LED</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <span id="led-state-label" class="badge badge-yellow">OFF</span>
+          <button id="led-toggle-btn" class="btn btn-primary" onclick="toggleLed()">Toggle LED</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- WI-FI & SETTINGS TAB -->
@@ -506,10 +524,50 @@ async function restartDevice() {
   setTimeout(() => location.reload(), 7000);
 }
 
+async function fetchGpio() {
+  try {
+    const res = await fetch('/api/gpio');
+    if (!res.ok) return;
+    const data = await res.json();
+    const lbl = document.getElementById('led-state-label');
+    const btn = document.getElementById('led-toggle-btn');
+    if (lbl && btn) {
+      if (data.led_state) {
+        lbl.className = 'badge badge-green';
+        lbl.textContent = 'ON';
+        btn.textContent = 'Turn OFF';
+      } else {
+        lbl.className = 'badge badge-yellow';
+        lbl.textContent = 'OFF';
+        btn.textContent = 'Turn ON';
+      }
+    }
+  } catch(e) {}
+}
+
+async function toggleLed() {
+  try {
+    const btn = document.getElementById('led-toggle-btn');
+    if (btn) btn.disabled = true;
+    const res = await fetch('/api/gpio', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ toggle: true })
+    });
+    if (btn) btn.disabled = false;
+    await fetchGpio();
+  } catch(e) {
+    const btn = document.getElementById('led-toggle-btn');
+    if (btn) btn.disabled = false;
+  }
+}
+
 // Initial loads
 fetchStatus();
 loadConfig();
+fetchGpio();
 setInterval(fetchStatus, 5000);
+setInterval(fetchGpio, 5000);
 </script>
 </body>
 </html>

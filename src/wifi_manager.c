@@ -5,6 +5,7 @@
 #include <esp_wifi.h>
 #include <esp_event.h>
 #include <esp_netif.h>
+#include <esp_mac.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 
@@ -53,10 +54,12 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
-        ESP_LOGI(TAG, "Station "MACSTR" joined SoftAP, AID=%d", MAC2STR(event->mac), event->aid);
+        ESP_LOGI(TAG, "Station %02x:%02x:%02x:%02x:%02x:%02x joined SoftAP, AID=%d",
+                 event->mac[0], event->mac[1], event->mac[2], event->mac[3], event->mac[4], event->mac[5], event->aid);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
-        ESP_LOGI(TAG, "Station "MACSTR" left SoftAP, AID=%d", MAC2STR(event->mac), event->aid);
+        ESP_LOGI(TAG, "Station %02x:%02x:%02x:%02x:%02x:%02x left SoftAP, AID=%d",
+                 event->mac[0], event->mac[1], event->mac[2], event->mac[3], event->mac[4], event->mac[5], event->aid);
     }
 }
 
@@ -67,6 +70,7 @@ static void start_softap(void) {
     if (!s_ap_netif) {
         s_ap_netif = esp_netif_create_default_wifi_ap();
     }
+    esp_netif_set_hostname(s_ap_netif, "master");
 
     wifi_config_t ap_config = {
         .ap = {
@@ -99,6 +103,7 @@ esp_err_t wifi_manager_init(void) {
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     s_sta_netif = esp_netif_create_default_wifi_sta();
+    esp_netif_set_hostname(s_sta_netif, "master");
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));

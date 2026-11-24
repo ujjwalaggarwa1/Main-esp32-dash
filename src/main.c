@@ -11,6 +11,7 @@
 #include "app_config.h"
 #include "config_manager.h"
 #include "wifi_manager.h"
+#include "hardware_manager.h"
 #include "ota_engine.h"
 #include "web_server.h"
 
@@ -43,6 +44,9 @@ void app_main(void) {
 
     // 1. Initialize Persistent Config Storage (NVS)
     ESP_ERROR_CHECK(config_manager_init());
+
+    // 1b. Initialize Hardware Peripherals (Onboard LED on GPIO 8)
+    ESP_ERROR_CHECK(hardware_manager_init());
 
     app_settings_t settings;
     config_manager_get(&settings);
