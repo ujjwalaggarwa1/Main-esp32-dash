@@ -14,12 +14,22 @@ function switchTab(tabId, btn) {
     if (el) el.classList.add('active');
   }
 }
+window.switchTab = switchTab;
 
 async function fetchStatus() {
+  const connHelper = document.getElementById('conn-helper-alert');
   try {
-    const res = await fetch('/api/status');
-    if (!res.ok) return;
+    const res = await fetch('/api/status', { cache: 'no-store' });
+    if (!res.ok) {
+      const netBadge = document.getElementById('net-badge');
+      if (netBadge) {
+        netBadge.className = 'badge badge-yellow';
+        netBadge.textContent = 'API Status: ' + res.status;
+      }
+      return;
+    }
     const data = await res.json();
+    if (connHelper) connHelper.classList.add('hidden');
 
     document.getElementById('stat-name').textContent = data.device_name || 'MasterHelper';
     document.getElementById('stat-ver').textContent = 'v' + data.version;
@@ -48,6 +58,12 @@ async function fetchStatus() {
     }
   } catch (e) {
     console.error('Error fetching status', e);
+    const netBadge = document.getElementById('net-badge');
+    if (netBadge) {
+      netBadge.className = 'badge badge-yellow';
+      netBadge.innerHTML = '&#9888; Connecting...';
+    }
+    if (connHelper) connHelper.classList.remove('hidden');
   }
 }
 
@@ -335,7 +351,27 @@ async function restartDevice() {
   setTimeout(() => location.reload(), 7000);
 }
 
+// Attach listeners and start polling
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const onclickAttr = this.getAttribute('onclick') || '';
+      const match = onclickAttr.match(/switchTab\('([^']+)'/);
+      if (match && match[1]) {
+        switchTab(match[1], this);
+      }
+    });
+  });
+  fetchStatus();
+  loadConfig();
+  if (!pollTimer) {
+    pollTimer = setInterval(fetchStatus, 5000);
+  }
+});
+
 // Initial loads
 fetchStatus();
 loadConfig();
-setInterval(fetchStatus, 5000);
+if (!pollTimer) {
+  pollTimer = setInterval(fetchStatus, 5000);
+}

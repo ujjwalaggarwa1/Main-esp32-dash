@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Master Helper - ESP32 Control Center</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=2">
 </head>
 <body>
 <div class="container">
@@ -25,6 +28,10 @@
 
   <!-- DASHBOARD TAB -->
   <div id="tab-dash" class="tab-content">
+    <div id="conn-helper-alert" class="alert alert-warning hidden">
+      <span>&#9888; <strong>Connection Notice:</strong> Unable to reach ESP32 status API. If using a mobile phone connected to <strong>MasterHelper-AP</strong>, please temporarily turn off <strong>Mobile Data (4G/5G)</strong> so your browser routes requests to <code>192.168.4.1</code>.</span>
+    </div>
+
     <div class="card">
       <div class="card-title">System Overview</div>
       <div class="grid-2">
@@ -208,6 +215,6 @@
   </div>
 </div>
 
-<script src="/app.js"></script>
+<script src="/app.js?v=2"></script>
 </body>
 </html>

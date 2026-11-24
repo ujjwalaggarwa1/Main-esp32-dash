@@ -37,6 +37,7 @@ static esp_err_t send_json_response(httpd_req_t *req, cJSON *root) {
     }
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
     esp_err_t res = httpd_resp_send(req, json_str, strlen(json_str));
     free(json_str);
     cJSON_Delete(root);
@@ -46,6 +47,7 @@ static esp_err_t send_json_response(httpd_req_t *req, cJSON *root) {
 // GET / - Serves index.html
 static esp_err_t root_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
     size_t len = index_html_end - index_html_start;
     return httpd_resp_send(req, (const char *)index_html_start, len);
 }
@@ -53,6 +55,7 @@ static esp_err_t root_get_handler(httpd_req_t *req) {
 // GET /style.css - Serves CSS
 static esp_err_t style_css_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/css");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
     size_t len = style_css_end - style_css_start;
     return httpd_resp_send(req, (const char *)style_css_start, len);
 }
@@ -60,6 +63,7 @@ static esp_err_t style_css_get_handler(httpd_req_t *req) {
 // GET /app.js - Serves JavaScript
 static esp_err_t app_js_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/javascript");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
     size_t len = app_js_end - app_js_start;
     return httpd_resp_send(req, (const char *)app_js_start, len);
 }
