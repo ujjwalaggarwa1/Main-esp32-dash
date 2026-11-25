@@ -17,4 +17,5 @@ idf_component_register(
         esp_system
         json
         esp_timer
+        mdns
 )

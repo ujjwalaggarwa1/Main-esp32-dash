@@ -6,6 +6,7 @@
 #include <esp_event.h>
 #include <esp_netif.h>
 #include <esp_mac.h>
+#include <mdns.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 
@@ -26,6 +27,23 @@ static char s_ip_str[32] = "0.0.0.0";
 static wifi_state_t s_wifi_state = WIFI_STATE_DISCONNECTED;
 
 static void start_softap(void);
+
+static void init_mdns(void) {
+    static bool s_mdns_initialized = false;
+    if (s_mdns_initialized) return;
+
+    esp_err_t err = mdns_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "mDNS init failed: %s", esp_err_to_name(err));
+        return;
+    }
+
+    ESP_ERROR_CHECK(mdns_hostname_set("master"));
+    ESP_ERROR_CHECK(mdns_instance_name_set("Master Helper ESP32-C3"));
+    mdns_service_add("MasterHelper-Web", "_http", "_tcp", 80, NULL, 0);
+    s_mdns_initialized = true;
+    ESP_LOGI(TAG, "mDNS responder running! Accessible at: http://master.local");
+}
 
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data) {
@@ -50,8 +68,9 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "WiFi Connected! Acquired IP: %s", s_ip_str);
         s_retry_count = 0;
         s_is_connected = true;
-        s_wifi_state = s_ap_active ? WIFI_STATE_AP_STA_MODE : WIFI_STATE_CONNECTED;
+        s_wifi_state = WIFI_STATE_AP_STA_MODE;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        init_mdns();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
         ESP_LOGI(TAG, "Station %02x:%02x:%02x:%02x:%02x:%02x joined SoftAP, AID=%d",
@@ -102,7 +121,9 @@ esp_err_t wifi_manager_init(void) {
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
+    s_ap_netif = esp_netif_create_default_wifi_ap();
     s_sta_netif = esp_netif_create_default_wifi_sta();
+    esp_netif_set_hostname(s_ap_netif, "master");
     esp_netif_set_hostname(s_sta_netif, "master");
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -126,24 +147,25 @@ esp_err_t wifi_manager_start(void) {
     app_settings_t settings;
     config_manager_get(&settings);
 
-    // If no SSID configured, start SoftAP directly
-    if (strlen(settings.wifi_ssid) == 0) {
-        ESP_LOGW(TAG, "No WiFi credentials configured. Starting SoftAP directly.");
-        start_softap();
-        ESP_ERROR_CHECK(esp_wifi_start());
-        return ESP_OK;
+    // ALWAYS enable Dual AP+STA mode so SoftAP is NEVER dropped!
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    start_softap();
+
+    // If STA credentials configured, also connect Station
+    if (strlen(settings.wifi_ssid) > 0) {
+        wifi_config_t wifi_config = {0};
+        strncpy((char*)wifi_config.sta.ssid, settings.wifi_ssid, sizeof(wifi_config.sta.ssid) - 1);
+        strncpy((char*)wifi_config.sta.password, settings.wifi_pass, sizeof(wifi_config.sta.password) - 1);
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
+        ESP_LOGI(TAG, "Configuring STA to connect to SSID: '%s' ...", settings.wifi_ssid);
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    } else {
+        ESP_LOGW(TAG, "No home WiFi credentials configured yet. SoftAP is active.");
     }
 
-    // Configure STA mode
-    wifi_config_t wifi_config = {0};
-    strncpy((char*)wifi_config.sta.ssid, settings.wifi_ssid, sizeof(wifi_config.sta.ssid) - 1);
-    strncpy((char*)wifi_config.sta.password, settings.wifi_pass, sizeof(wifi_config.sta.password) - 1);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-
-    ESP_LOGI(TAG, "Connecting to SSID: %s ...", settings.wifi_ssid);
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    init_mdns();
 
     return ESP_OK;
 }
@@ -178,9 +200,12 @@ wifi_state_t wifi_manager_get_state(void) {
 esp_err_t wifi_manager_reconnect(const char *ssid, const char *pass) {
     if (!ssid) return ESP_ERR_INVALID_ARG;
 
-    ESP_LOGI(TAG, "Reconnecting WiFi to SSID: %s", ssid);
+    ESP_LOGI(TAG, "Reconnecting WiFi to SSID: %s (keeping SoftAP active)", ssid);
     s_retry_count = 0;
     s_is_connected = false;
+
+    // Ensure mode remains AP+STA
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 
     wifi_config_t wifi_config = {0};
     strncpy((char*)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid) - 1);
