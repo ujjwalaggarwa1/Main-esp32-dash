@@ -7,6 +7,7 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_ota_ops.h"
+#include "driver/gpio.h"
 
 #include "app_config.h"
 #include "config_manager.h"
@@ -17,10 +18,30 @@
 
 static const char *TAG = "MASTER_HELPER";
 
+// Standard onboard Status LED on ESP32-C3 (e.g. SuperMini blue LED on GPIO 8)
+#define STATUS_LED_GPIO GPIO_NUM_8
+
+static void status_led_init(void) {
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << STATUS_LED_GPIO),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_conf);
+    // Active LOW drives the onboard blue LED on ESP32-C3 SuperMini
+    gpio_set_level(STATUS_LED_GPIO, 0);
+    ESP_LOGI(TAG, "Hardware Status LED (GPIO %d) set to ON (Blue Glow)", STATUS_LED_GPIO);
+}
+
 void app_main(void) {
     ESP_LOGI(TAG, "==================================================");
     ESP_LOGI(TAG, "        MASTER HELPER - ESP32-C3 CORE             ");
     ESP_LOGI(TAG, "==================================================");
+
+    // Initialize onboard status LED immediately for physical upload feedback
+    status_led_init();
 
     // Print chip & flash diagnostics
     esp_chip_info_t chip_info;

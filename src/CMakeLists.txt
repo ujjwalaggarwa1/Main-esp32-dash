@@ -1,4 +1,4 @@
-FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
+FILE(GLOB app_sources ${CMAKE_CURRENT_LIST_DIR}/*.c ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 
 idf_component_register(
     SRCS ${app_sources}

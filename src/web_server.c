@@ -19,19 +19,43 @@ static httpd_handle_t s_server = NULL;
 
 // Helper: send JSON response
 static esp_err_t send_json_response(httpd_req_t *req, cJSON *root) {
+    if (!root) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
     char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        cJSON_Delete(root);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
     esp_err_t res = httpd_resp_send(req, json_str, strlen(json_str));
     free(json_str);
     cJSON_Delete(root);
     return res;
 }
 
-// GET / - Serves UI
+// GET / - Serves unified index.html (with inline CSS and JS)
 static esp_err_t root_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
-    return httpd_resp_send(req, INDEX_HTML, HTTPD_RESP_USE_STRLEN);
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
+    return httpd_resp_send(req, INDEX_HTML, strlen(INDEX_HTML));
+}
+
+// GET /favicon.ico - 204 No Content to avoid browser 404s
+static esp_err_t favicon_get_handler(httpd_req_t *req) {
+    httpd_resp_set_status(req, "204 No Content");
+    return httpd_resp_send(req, NULL, 0);
+}
+
+// Fallback GET for legacy requests
+static esp_err_t empty_get_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
+    return httpd_resp_send(req, "", 0);
 }
 
 // GET /api/status
@@ -148,6 +172,18 @@ static esp_err_t api_ota_check_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "notes", info.notes);
     cJSON_AddBoolToObject(root, "update_available", info.update_available);
     cJSON_AddStringToObject(root, "message", info.message);
+
+    cJSON *tests_arr = cJSON_CreateArray();
+    for (int i = 0; i < info.test_builds_count; i++) {
+        cJSON *b = cJSON_CreateObject();
+        cJSON_AddStringToObject(b, "name", info.test_builds[i].name);
+        cJSON_AddStringToObject(b, "version", info.test_builds[i].version);
+        cJSON_AddStringToObject(b, "hash", info.test_builds[i].hash);
+        cJSON_AddStringToObject(b, "bin_url", info.test_builds[i].bin_url);
+        cJSON_AddStringToObject(b, "notes", info.test_builds[i].notes);
+        cJSON_AddItemToArray(tests_arr, b);
+    }
+    cJSON_AddItemToObject(root, "test_builds", tests_arr);
 
     return send_json_response(req, root);
 }
@@ -348,6 +384,15 @@ esp_err_t web_server_start(void) {
 
     httpd_uri_t uri_root = { .uri = "/", .method = HTTP_GET, .handler = root_get_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_root);
+
+    httpd_uri_t uri_fav = { .uri = "/favicon.ico", .method = HTTP_GET, .handler = favicon_get_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &uri_fav);
+
+    httpd_uri_t uri_style = { .uri = "/style.css", .method = HTTP_GET, .handler = empty_get_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &uri_style);
+
+    httpd_uri_t uri_app_js = { .uri = "/app.js", .method = HTTP_GET, .handler = empty_get_handler, .user_ctx = NULL };
+    httpd_register_uri_handler(s_server, &uri_app_js);
 
     httpd_uri_t uri_status = { .uri = "/api/status", .method = HTTP_GET, .handler = api_status_handler, .user_ctx = NULL };
     httpd_register_uri_handler(s_server, &uri_status);

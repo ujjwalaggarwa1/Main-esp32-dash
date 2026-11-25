@@ -1,6 +1,6 @@
 # Master Helper (ESP32-C3 ESP-IDF Core)
 
-A foundation firmware for the **ESP32-C3** (`esp32-c3-devkitm-1`) built on the **ESP-IDF** framework. It provides persistent NVS configuration management, Wi-Fi with automatic SoftAP fallback, a modern responsive Web Control Center, and an automated GitHub-based OTA updater.
+A foundation firmware for the **ESP32-C3** (`esp32-c3-devkitm-1`) built on the **ESP-IDF** framework. It provides persistent NVS configuration management, Wi-Fi with automatic SoftAP fallback, a modular Web Control Center (HTML, CSS, JS), and an automated GitHub-based OTA updater.
 
 ---
 
@@ -15,12 +15,14 @@ A foundation firmware for the **ESP32-C3** (`esp32-c3-devkitm-1`) built on the *
 - **Smart Wi-Fi Manager**:
   - Attempts Station (STA) connection to saved Wi-Fi.
   - Automatically falls back to **SoftAP Mode** (`MasterHelper-AP`, pass: `12345678`) on `http://192.168.4.1` if Wi-Fi credentials are unset or connection fails.
-- **Embedded Web Control Center**:
-  - Real-time status monitoring (IP, RSSI, Free Heap, Uptime, Active Partition).
-  - Wi-Fi & Configuration settings form (update Wi-Fi without USB cables).
-  - GitHub OTA Updater tab with version comparison and live flashing progress bar.
-  - Direct `.bin` manual upload tab for offline flashing.
-  - One-click device restart button.
+- **Modular Frontend Architecture (`src/web/`)**:
+  - `src/web/index.html` - Semantic structure.
+  - `src/web/style.css` - Custom styling & themes.
+  - `src/web/app.js` - Dynamic logic & API client.
+  - All files are automatically embedded into flash as native HTTP assets via ESP-IDF's `EMBED_TXTFILES`.
+- **Automated `compiled/` Release Folder**:
+  - Every build automatically copies `.pio/build/esp32-c3-devkitm-1/firmware.bin` into `compiled/firmware.bin`.
+  - Calculates SHA-256 hash and updates `compiled/version.json`.
 - **GitHub OTA Updater Engine**:
   - Fetches and parses `version.json` over HTTPS (using ESP-IDF certificate bundle).
   - **Version Update Rule**: Checks remote version and commit hash; **only triggers an update if the remote version number has changed AND the commit hash does not match**.
@@ -32,17 +34,24 @@ A foundation firmware for the **ESP32-C3** (`esp32-c3-devkitm-1`) built on the *
 
 ```
 Main/
+├── compiled/                  # GitHub Release folder (served to the ESP)
+│   ├── firmware.bin           # Current compiled binary
+│   └── version.json           # Manifest with version, hash, and download URL
 ├── partitions.csv             # 4MB Dual-OTA partition table (nvs, otadata, phy, ota_0, ota_1)
-├── platformio.ini             # PlatformIO config for esp32-c3-devkitm-1 (ESP-IDF framework)
+├── platformio.ini             # PlatformIO config with automated post-build script
+├── scripts/
+│   └── copy_compiled.py       # Post-build script syncing bin and manifest to compiled/
 ├── sdkconfig.esp32-c3-devkitm-1 # ESP-IDF configuration (mbedTLS cert bundle, custom partitions)
-├── version.json.template      # Example GitHub manifest file
 └── src/
     ├── app_config.h           # System constants, defaults, and data models
     ├── config_manager.h/.c    # NVS read/write manager for credentials & build info
     ├── wifi_manager.h/.c      # Wi-Fi STA connection handler + SoftAP fallback
     ├── ota_engine.h/.c        # HTTPS client, GitHub version checker & OTA flasher
-    ├── web_ui.h               # Responsive Single Page Application (HTML/CSS/JS)
     ├── web_server.h/.c        # ESP-IDF HTTP server & REST API endpoints
+    ├── web/                   # Frontend files (no C code, pure web standards)
+    │   ├── index.html         # Main dashboard HTML
+    │   ├── style.css          # CSS styles
+    │   └── app.js             # Client-side JavaScript
     └── main.c                 # Application entry point & supervisory loop
 ```
 
@@ -52,7 +61,9 @@ Main/
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/` | `GET` | Serves the responsive Web UI |
+| `/` | `GET` | Serves `src/web/index.html` |
+| `/style.css` | `GET` | Serves `src/web/style.css` |
+| `/app.js` | `GET` | Serves `src/web/app.js` |
 | `/api/status` | `GET` | Returns system status (version, hash, partition, IP, RSSI, heap, uptime) |
 | `/api/config` | `GET` | Returns current device configuration |
 | `/api/config` | `POST` | Saves new Wi-Fi credentials, device name, and GitHub manifest URL |
@@ -64,16 +75,16 @@ Main/
 
 ---
 
-## 🔄 GitHub OTA Manifest (`version.json`)
+## 🔄 GitHub OTA Manifest (`compiled/version.json`)
 
-To enable remote updates, commit a `version.json` file to your GitHub repository (e.g. in your `main` branch or Releases):
+The ESP32 checks this file to see if a newer version is available:
 
 ```json
 {
-  "version": "1.0.1",
-  "hash": "a1b2c3d4e5f67890",
-  "bin_url": "https://raw.githubusercontent.com/<user>/<repo>/main/build/firmware.bin",
-  "notes": "Added life assistant endpoints and performance improvements"
+  "version": "1.0.0",
+  "hash": "6ea219654f2f63fa",
+  "bin_url": "https://raw.githubusercontent.com/<user>/<repo>/main/compiled/firmware.bin",
+  "notes": "Automated build release"
 }
 ```
 
@@ -91,7 +102,7 @@ To enable remote updates, commit a `version.json` file to your GitHub repository
 Run the following from your terminal:
 
 ```bash
-# Build firmware
+# Build firmware (auto-populates compiled/ folder)
 pio run
 
 # Flash to board and monitor output
@@ -104,5 +115,5 @@ pio run -t upload -t monitor
    - **Password**: `12345678`
 2. Open your browser and navigate to:
    - `http://192.168.4.1`
-3. Enter your home/office Wi-Fi details and click **Save & Reconnect**.
+3. In the **Wi-Fi & Settings** tab, input your local Wi-Fi credentials and GitHub manifest URL, then click **Save & Reconnect**.
 4. Once connected, access the Web UI from your local network IP printed in the serial monitor or shown on the dashboard.
