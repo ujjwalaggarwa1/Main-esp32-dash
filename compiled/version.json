@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "hash": "098f0dca19821c05cf009bb360eaee300886e510",
+  "hash": "12c314173744a186040259a6bf1d591850812811",
   "bin_url": "https://raw.githubusercontent.com/ujjwalaggarwa1/Main-esp32-dash/main/compiled/firmware.bin",
-  "notes": "Automated release for ESP32-C3 SuperMini compiled on 2026-11-25 05:53:56 UTC"
+  "notes": "Automated release for ESP32-C3 SuperMini compiled on 2026-11-25 05:55:04 UTC"
 }
